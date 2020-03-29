@@ -1,0 +1,369 @@
+<head>
+<!-- Latest compiled and minified CSS -->
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+<!-- Optional theme -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+<style type="text/css">
+    .popover{
+        max-width:600px;
+    }
+</style>
+
+<script>
+
+decipher = function(){ 
+    var input = 
+    `
+    -> | id        | txn_start | txn_end   | v_out     | v_in     | edge_order | label                 |
+        -> +-----------+-----------+-----------+-----------+----------+------------+-------             ---+
+        -> |  64803779 |  64803955 |  66967906 |  64803778 | 64803308 |          3 | isPartOf |
+        -> |  64803779 |  66967906 | 131363133 |  64803778 | 64803308 |          3 | isPartOf |
+        -> |  64803779 | 131363133 | 132164073 |  64803778 | 64803308 |          3 | isPartOf |
+        -> |  64803779 | 132164073 |         0 |  64803778 | 64803308 |          3 | isPartOf |
+        -> | 121966963 | 121967156 | 121967158 | 121966962 | 64803778 |          0 | isPart             Of |
+        -> | 121966963 | 121967158 |         0 | 121966962 | 64803778 |          0 | isPart             Of |
+        -> | 121966976 | 121967156 | 121967158 | 121966975 | 64803778 |          1 | isPart             Of |
+        -> | 121966976 | 121967158 |         0 | 121966975 | 64803778 |          1 | isPart             Of |
+        -> +-----------+-----------+-----------+-----------+----------+
+    `
+
+    var set = []
+
+    var input_lines = input.split(/\r?\n/)
+    input_lines = input_lines.filter(l => {
+    return l.includes("->") && (!l.includes("-------"))
+    })
+    var headers = input_lines[0].split("|").filter(l => {return !l.includes("->")})
+    headers.forEach((element,index) => {
+        headers[index] = element.trim()
+    });
+
+    var other_lines = input_lines.slice(1)
+    other_lines.forEach(l => {
+    var values = l.split('|').slice(1)
+    var entry = {}
+    values.forEach((v,i) => {
+    entry[headers[i]] = v.trim().replace(" ","")
+    })
+    set.push(entry)
+    })
+
+
+    console.log(set)
+    return set
+}
+
+
+    pop_relation_changes = function(){
+
+    var edge_histories = decipher()
+//     [
+//     {id:1,txn_start:100,txn_end:102,v_in:500,v_out:601,edge_order:1,label:"isPartOf"},  
+//     {id:2,txn_start:100,txn_end:102,v_in:500,v_out:602,edge_order:2,label:"isPartOf"} , 
+//     // ^ These bois are created in the first transaction, unmodified
+//     {id:3,txn_start:100,txn_end:101,v_in:500,v_out:603,edge_order:3,label:"isPartOf"}  ,
+//     // ^ this boi is created in the first transaction then removed
+//     {id:4,txn_start:101,txn_end:0,v_in:500,v_out:604,edge_order:3,label:"isPartOf"}  ,
+//     // ^this boi was added in the transaction that removed the first one
+//     {id:1,txn_start:102,txn_end:0,v_in:500,v_out:601,edge_order:2,label:"isPartOf"}  ,
+//     {id:2,txn_start:102,txn_end:0,v_in:500,v_out:602,edge_order:1,label:"isPartOf"}  ,
+//     // 1 and 2 get their order reversed in transaction 102
+//     {id:5,txn_start:103,txn_end:0,v_in:500,v_out:605,edge_order:5,label:"isPartOf"}  
+//     ]
+
+
+
+
+
+
+    // ** Transactions stuff
+
+    var transactions = new Set()
+
+    edge_histories.forEach(eh => {
+        transactions.add(eh.txn_start)
+        transactions.add(eh.txn_end)
+    })
+
+    uniqueTransactions = []
+    transactions.forEach(t => {
+        uniqueTransactions.push(t)
+    })
+
+
+    // ** Edges stuff!! 
+    var EdgeInfos = {}
+
+    var Edges = new Set
+
+    edge_histories.forEach( e => {
+    Edges.add (e.id)
+    })
+
+    uniqueEdges = []
+
+    Edges.forEach(e => {
+        uniqueEdges.push(e)
+    })
+
+     EdgeInfos = {}
+
+    TransactionChanges = {}
+
+    uniqueEdges.forEach( e => {
+        edgeInfo = {}
+        
+        // Just want tranactions involving this edge
+        relevant_edgehistories = edge_histories.filter(eh => eh.id == e)
+
+        end_transactions = []
+
+        start_transactions = []
+
+        relevant_edgehistories.forEach(reh => {
+            start_transactions.push(reh.txn_start)
+            end_transactions.push(reh.txn_end)
+        })
+        edgeInfo.start_transaction = Math.min(...start_transactions)
+        // write the change 
+        start_edge_history = relevant_edgehistories.filter(reh => reh.txn_start == edgeInfo.start_transaction)[0];
+        sth = start_edge_history
+        if(!TransactionChanges[edgeInfo.start_transaction]) TransactionChanges[edgeInfo.start_transaction] = []
+        TransactionChanges[edgeInfo.start_transaction].push({type:"created",id:e,v_in:sth.v_in,v_out:sth.v_out,label:sth.label,edge_order:sth.edge_order})
+
+        edgeInfo.end_transaction = Math.min(...end_transactions)
+
+        if(edgeInfo.end_transaction != 0){
+            end_edge_history = relevant_edgehistories.filter(reh => reh.txn_end == edgeInfo.end_transaction)[0];
+            sth = end_edge_history
+            if(!TransactionChanges[edgeInfo.end_transaction]) TransactionChanges[edgeInfo.end_transaction] = []
+            TransactionChanges[edgeInfo.end_transaction].push({type:"removed",id:e,v_in:sth.v_in,v_out:sth.v_out,label:sth.label,edge_order:sth.edge_order})
+        }
+
+        
+        all_transactions_set = new Set()
+        start_transactions.forEach(st => all_transactions_set.add(st))
+        end_transactions.forEach(st => all_transactions_set.add(st))
+        
+        all_transactions = []
+
+        all_transactions_set.forEach (t => all_transactions.push(t))
+
+        mutation_transations = all_transactions.filter(t => t != edgeInfo.start_transaction && t!= edgeInfo.end_transaction)
+        
+        // Add edge info to list.
+        EdgeInfos[e] = edgeInfo;
+
+
+
+        // I don't know what order these get returned in.
+        relevant_edgehistories.sort((a,b) =>  a.start_transaction - b.start_transaction )
+        
+        relevant_edgehistories.forEach((eh,i)=>{
+            if(i!=0)// can't compare the first transaction
+            {
+                newer = eh
+                older = relevant_edgehistories[i-1]
+
+                // Hopefully amber methods don't create new verticies to re-order children
+
+                //id has to always be the same.. okay literally the only thing that should change here is the order, unless...
+                if(newer.edge_order != older.edge_order){
+
+                    if(!TransactionChanges[newer.txn_start]) TransactionChanges[newer.txn_start] = []
+                    TransactionChanges[newer.txn_start].push({type:"reordered",id:e,v_in:newer.v_in,v_out:newer.v_out,label:newer.label,edge_order:newer.edge_order,old_edge_order:older.edge_order})
+                }
+            }
+        })
+
+
+        /**
+        THINGS THAT WOULD MAKE THIS EASIER
+        -----------------------------------
+        - Use a class for changes
+
+
+
+        JOURNAL
+        _______
+
+        - Oops, the data is faulty.
+
+        */
+        
+    })
+
+    console.log(EdgeInfos);
+    console.log(TransactionChanges);
+
+}
+
+
+/*
+        <tbody id="change_table_body">
+                    <tr hidden id="tr_template_change">
+                    <th scope="row">{type}</th>
+                    <td>{v_in}</td>
+                    <td>{v_out}</td>
+                    <td>{label}</td>
+                    <td>{edge_order}</td>
+                    <td>{old_edge_order}</td>
+                    </tr>
+*/
+
+
+renderTransactionChanges = function(txn){
+
+    $(".rendered-row").remove();
+
+    var transaction = TransactionChanges[txn]
+
+    transaction.forEach(tc => {
+
+    template = $("#tr_template_change").clone();
+
+    a = template[0].innerHTML
+
+    template[0].innerHTML=a.replace("{type}",tc.type).replace("{v_in}",tc.v_in).replace("{v_out}",tc.v_out).replace("{label}",tc.label).replace("{edge_order}",tc.edge_order).replace("{old_edge_order}",tc.old_edge_order)
+
+    template.attr("hidden",false).attr("id","").attr("class","rendered-row");
+
+    table = $("#change_table_body")
+
+    table.append(template);
+        
+    })
+
+
+}
+
+// init popovers
+
+$(function () {
+  $('[data-toggle="popover"]').popover()
+})
+
+numbersWithTooltips = {}
+
+render_tooltip = function(e){
+
+
+    num =  Number(e.target.parentElement.previousElementSibling.previousElementSibling.previousElementSibling.innerText)
+    if(!numbersWithTooltips[num]){
+    renderTransactionChanges(num)
+
+    t = $("#changes")[0].innerHTML;
+
+   $(e.target).popover({container:"body",placement:'bottom',html:'true',content:$("#changes")[0].innerHTML})
+    numbersWithTooltips[num]=true
+    }
+
+}
+
+
+
+</script>
+
+</head>
+
+<body>
+
+     <div>
+
+        <!-- Nav tabs -->
+        <ul class="nav nav-tabs" role="tablist">
+          <li role="presentation" class="active"><a href="#home" aria-controls="home" role="tab" data-toggle="tab">Home</a></li>
+          <li role="presentation"><a href="#profile" aria-controls="profile" role="tab" data-toggle="tab">Profile</a></li>
+          <li role="presentation"><a href="#changes" aria-controls="changes" role="tab" data-toggle="tab" onclick="renderTransactionChanges(102)" >changes</a></li>
+          <li role="presentation"><a href="#rel_history" aria-controls="rel_history" role="tab" data-toggle="tab" onclick="pop_relation_changes()">Relationship history</a></li>
+        </ul>
+      
+        <!-- Tab panes -->
+        <div class="tab-content">
+          <div role="tabpanel" class="tab-pane active" id="home">...</div>
+          <div role="tabpanel" class="tab-pane" id="profile">...</div>
+
+
+          <div role="tabpanel" class="tab-pane" id="changes">
+            <table id="change_table" class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>change_type</th>
+                    <th>v_in</th>
+                    <th>v_out</th>
+                    <th>label</th>
+                    <th>edge_order</th>
+                  </tr>
+                </thead>
+                <tbody id="change_table_body">
+                    <tr hidden id="tr_template_change">
+                    <th scope="row">{type}</th>
+                    <td>{v_in}</td>
+                    <td>{v_out}</td>
+                    <td>{label}</td>
+                    <td>{edge_order}</td>
+                    <td>{old_edge_order}</td>
+                    </tr>
+                </tbody>
+              </table>
+          </div>
+          <div role="tabpanel" class="tab-pane" id="rel_history">
+              
+
+
+            <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Changes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                    <tr hidden id="tr_template">
+                    <th scope="row">{num}</th>
+                    <td>{date}</td>
+                    <td>{user}</td>
+                    <td><a>Hover to see</a></td>
+                    </tr>
+                  <tr>
+                    <th scope="row">121967156</th>
+                    <td>2/2/2020</td>
+                    <td>Scoen</td>
+                    <td><a onmouseover="render_tooltip(event)" >Hover to see</a></td>
+                  </tr>
+                </tbody>
+              </table>
+
+
+          </div>
+        </div>
+      
+      </div>
+
+
+
+</body>
+
+
+<!--
+
+    THINGS
+___________
+
+- populate changes table
+- make table appear in either a modal or a popover
+
+
+
+
+-->
